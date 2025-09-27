@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login - ChatNox</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="form-container">
+    <h2>Login</h2>
+
+    <input type="email" id="loginEmail" placeholder="Email address" required>
+    <input type="password" id="loginPassword" placeholder="Password" required>
+
+    <button id="loginBtn">Login</button>
+
+    <p>
+      Don’t have an account? 
+      <a href="signup.html">Register</a>
+    </p>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, reload } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBhiltsOwH_zawubyHG-GFgqbC4igqd2Og",
+      authDomain: "lone-hackers.firebaseapp.com",
+      projectId: "lone-hackers",
+      storageBucket: "lone-hackers.firebasestorage.app",
+      messagingSenderId: "503170194685",
+      appId: "1:503170194685:web:07adff95183ee1864cb294"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const emailInput = document.getElementById('loginEmail');
+    const passwordInput = document.getElementById('loginPassword');
+    const loginBtn = document.getElementById('loginBtn');
+
+    loginBtn.addEventListener('click', async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+
+      if (!email || !password) {
+        alert("Please fill in all fields.");
+        return;
+      }
+
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        await reload(user); // Refresh user info
+
+        if (!user.emailVerified) {
+          alert("Please verify your email before logging in.");
+          return;
+        }
+
+        // Check Firestore for user data
+        const userRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(userRef);
+        if (!docSnap.exists()) {
+          alert("User data not found in Firestore.");
+        }
+
+        window.location.href = "#";
+
+      } catch (error) {
+        switch(error.code) {
+          case "auth/wrong-password":
+            alert("Incorrect password.");
+            break;
+          case "auth/user-not-found":
+            alert("No account found with this email.");
+            break;
+          default:
+            alert("Login failed. " + error.message);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

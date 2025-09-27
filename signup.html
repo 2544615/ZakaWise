@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sign Up - ChatNox</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="form-container">
+    <h2>Sign Up</h2>
+
+    <input type="email" id="signupEmail" placeholder="Email address" required>
+    <input type="password" id="signupPassword" placeholder="Password" required>
+    <input type="password" id="signupConfirmPassword" placeholder="Confirm Password" required>
+
+    <button id="signupBtn">Sign Up</button>
+
+    <p>
+      Already have an account? 
+      <a href="login.html">Login</a>
+    </p>
+  </div>
+
+  <!-- Popup Modal -->
+  <div id="popup" class="popup">
+    <div class="popup-content">
+      <p id="popupMessage"></p>
+      <button id="closePopup">OK</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+    import { getFirestore, setDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBhiltsOwH_zawubyHG-GFgqbC4igqd2Og",
+      authDomain: "lone-hackers.firebaseapp.com",
+      projectId: "lone-hackers",
+      storageBucket: "lone-hackers.firebasestorage.app",
+      messagingSenderId: "503170194685",
+      appId: "1:503170194685:web:07adff95183ee1864cb294"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const emailInput = document.getElementById('signupEmail');
+    const passwordInput = document.getElementById('signupPassword');
+    const confirmInput = document.getElementById('signupConfirmPassword');
+    const signupBtn = document.getElementById('signupBtn');
+
+    // Popup
+    const popup = document.getElementById("popup");
+    const popupMessage = document.getElementById("popupMessage");
+    const closePopup = document.getElementById("closePopup");
+
+    function showPopup(msg) {
+      popupMessage.textContent = msg;
+      popup.classList.add("show");
+    }
+
+    closePopup.addEventListener("click", () => {
+      popup.classList.remove("show");
+    });
+
+    window.addEventListener("click", (e) => {
+      if (e.target === popup) popup.classList.remove("show");
+    });
+
+    signupBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      const confirm = confirmInput.value;
+
+      if (!email || !password || !confirm) {
+        showPopup("All fields are required.");
+        return;
+      }
+      if (password !== confirm) {
+        showPopup("Passwords do not match.");
+        return;
+      }
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const currentUser = userCredential.user;
+
+        // Send verification email
+        await sendEmailVerification(currentUser);
+        showPopup("Verification email sent! Please check your inbox.");
+
+        // Poll until email is verified
+        const interval = setInterval(async () => {
+          await currentUser.reload();
+          if (currentUser.emailVerified) {
+            clearInterval(interval);
+
+            // Save user in Firestore
+            await setDoc(doc(db, "users", currentUser.uid), {
+              uid: currentUser.uid,
+              email: currentUser.email,
+              createdAt: serverTimestamp()
+            });
+
+            // Redirect to chat
+            window.location.href = "chat.html";
+          }
+        }, 3000);
+
+      } catch (error) {
+        // Custom error messages
+        switch (error.code) {
+          case "auth/email-already-in-use":
+            showPopup("This email is already registered. Please login instead.");
+            break;
+          case "auth/invalid-email":
+            showPopup("Invalid email format. Please check and try again.");
+            break;
+          case "auth/weak-password":
+            showPopup("Password should be at least 6 characters.");
+            break;
+          default:
+            showPopup("Signup failed. Please try again.");
+        }
+      }
+    });
+  </script>
+</body>
+</html>
